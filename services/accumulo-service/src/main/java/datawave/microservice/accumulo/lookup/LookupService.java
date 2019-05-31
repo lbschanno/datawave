@@ -454,10 +454,10 @@ public class LookupService {
             this.params = b.params;
             
             if (StringUtils.isNotBlank(b.beginEntry)) {
-                this.beginEntry = Integer.valueOf(b.beginEntry);
+                this.beginEntry = Integer.parseInt(b.beginEntry);
             }
             if (StringUtils.isNotBlank(b.endEntry)) {
-                this.endEntry = Integer.valueOf(b.endEntry);
+                this.endEntry = Integer.parseInt(b.endEntry);
             }
         }
         

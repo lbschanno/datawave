@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 import datawave.query.language.functions.QueryFunction;
 import datawave.query.language.parser.ParseException;
@@ -137,8 +138,13 @@ public class Chain extends JexlQueryFunction {
             if (split2.length == 1) {
                 variableValue = variableName;
             } else {
-                String variableValueString = (String) split2[1];
+                String variableValueString = split2[1];
                 if (variableValueString.startsWith("[") && variableValueString.endsWith("]")) {
+                    // TODO: This code needs further review. Spotbugs flagged the split("|") below as
+                    // RE_POSSIBLE_UNINTENDED_PATTERN. There are no tests that exercise this path, so the expected
+                    // input and output are unclear in this case. Ostensibly, the intent is to do split("\\|") instead,
+                    // but that raises question of why we'd retain the open/close brackets in the parsed output,
+                    // e.g. for "[choice_1" and "choice_N]" ??
                     List<String> choiceList = new ArrayList<>();
                     String[] choices = variableValueString.split("|");
                     Collections.addAll(choiceList, choices);

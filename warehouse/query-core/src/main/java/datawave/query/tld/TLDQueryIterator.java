@@ -144,7 +144,7 @@ public class TLDQueryIterator extends QueryIterator {
             
             @Override
             public EventDataQueryFilter clone() {
-                return this.clone();
+                return this;
             }
             
             @Override

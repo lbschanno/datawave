@@ -382,6 +382,13 @@ public class PhoneNumber implements Serializable, Comparable<PhoneNumber> {
         }
     }
     
+    @Override
+    public int hashCode() {
+        int result = originalPhoneNumber != null ? originalPhoneNumber.hashCode() : 0;
+        result = 31 * result + (normalizedPhoneNumber != null ? normalizedPhoneNumber.hashCode() : 0);
+        return result;
+    }
+    
     /**
      * Test if character is a digit.
      * 

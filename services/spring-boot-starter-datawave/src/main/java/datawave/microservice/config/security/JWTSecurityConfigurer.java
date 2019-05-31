@@ -97,7 +97,7 @@ public class JWTSecurityConfigurer extends WebSecurityConfigurerAdapter {
     }
     
     @Override
-    protected void configure(@Nullable AuthenticationManagerBuilder auth) throws Exception {
+    protected void configure(AuthenticationManagerBuilder auth) throws Exception {
         Preconditions.checkNotNull(auth);
         auth.authenticationProvider(jwtAuthenticationProvider);
     }

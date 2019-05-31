@@ -256,4 +256,9 @@ public class MACAddress implements Serializable, Comparable<MACAddress> {
             return false;
         }
     }
+    
+    @Override
+    public int hashCode() {
+        return this.toNormalizedString("").hashCode();
+    }
 }

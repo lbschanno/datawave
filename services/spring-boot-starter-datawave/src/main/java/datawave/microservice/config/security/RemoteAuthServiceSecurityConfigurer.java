@@ -55,7 +55,7 @@ public class RemoteAuthServiceSecurityConfigurer extends JWTSecurityConfigurer {
     }
     
     @Override
-    protected void configure(@Nullable AuthenticationManagerBuilder auth) throws Exception {
+    protected void configure(AuthenticationManagerBuilder auth) throws Exception {
         Preconditions.checkNotNull(auth);
         super.configure(auth);
         

@@ -91,21 +91,21 @@ public class TupleToRange implements Function<Tuple2<String,IndexInfo>,Iterator<
             }
             if (log.isTraceEnabled() && null != myNode)
                 log.trace("Building shard " + new Range(tuple.first(), true, tuple.first() + NULL_BYTE_STRING, false) + " From "
-                                + (null == myNode ? "NoQueryNode" : JexlStringBuildingVisitor.buildQuery(myNode)));
+                                + JexlStringBuildingVisitor.buildQuery(myNode));
             
             return Collections.singleton(new QueryPlan(myNode, new Range(tuple.first(), true, tuple.first() + NULL_BYTE_STRING, false))).iterator();
         }
         // else assume this a day range, then range from <day> to <day>\xff...
         else {
-            
             JexlNode myNode = queryNode;
             if (ii.getNode() != null) {
                 myNode = ii.getNode();
             }
-            
             Range myRange = new Range(tuple.first() + "_0", true, tuple.first() + MAX_UNICODE_STRING, false);
-            if (log.isTraceEnabled())
-                log.trace("Building day" + myRange + " from " + (null == myNode ? "NoQueryNode" : JexlStringBuildingVisitor.buildQuery(myNode)));
+            
+            if (log.isTraceEnabled() && null != myNode)
+                log.trace("Building day" + myRange + " from " + JexlStringBuildingVisitor.buildQuery(myNode));
+            
             return Collections.singleton(new QueryPlan(myNode, myRange)).iterator();
         }
     }

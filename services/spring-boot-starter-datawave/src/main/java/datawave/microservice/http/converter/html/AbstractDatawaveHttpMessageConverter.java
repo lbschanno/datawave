@@ -30,6 +30,7 @@ abstract public class AbstractDatawaveHttpMessageConverter<T> extends AbstractHt
     }
     
     @Override
+    @Nullable
     @SuppressWarnings("ConstantConditions")
     protected T readInternal(Class<? extends T> clazz, HttpInputMessage inputMessage) throws HttpMessageNotReadableException {
         return null;

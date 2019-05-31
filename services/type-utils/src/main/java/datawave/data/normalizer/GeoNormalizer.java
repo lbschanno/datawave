@@ -479,6 +479,16 @@ public class GeoNormalizer extends AbstractNormalizer<String> {
             }
         }
         
+        @Override
+        public int hashCode() {
+            int result;
+            long temp;
+            temp = Double.doubleToLongBits(latitude);
+            result = (int) (temp ^ (temp >>> 32));
+            temp = Double.doubleToLongBits(longitude);
+            result = 31 * result + (int) (temp ^ (temp >>> 32));
+            return result;
+        }
     }
     
     public static class OutOfRangeException extends Exception {

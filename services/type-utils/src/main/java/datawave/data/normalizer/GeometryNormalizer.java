@@ -34,7 +34,7 @@ public class GeometryNormalizer implements Normalizer<datawave.data.type.util.Ge
     private static final int LATITUDE_BITS = 31;
     
     // @formatter:off
-    public static NumericIndexStrategy indexStrategy = TieredSFCIndexFactory.createFullIncrementalTieredStrategy(
+    public static final NumericIndexStrategy indexStrategy = TieredSFCIndexFactory.createFullIncrementalTieredStrategy(
             new NumericDimensionDefinition[]{
                     new LongitudeDefinition(),
                     new LatitudeDefinition(

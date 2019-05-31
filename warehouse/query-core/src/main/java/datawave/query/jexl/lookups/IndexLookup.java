@@ -98,7 +98,7 @@ public abstract class IndexLookup {
                     String field = fieldTxt.toString();
                     if (null != log && log.isTraceEnabled()) {
                         log.trace("field is " + field);
-                        log.trace("field is " + (null == fieldsToValues));
+                        log.trace("fieldsToValues.isEmpty? " + fieldsToValues.isEmpty());
                     }
                     fieldsToValues.put(field, "");
                     fieldsToValues.get(field).setThresholdExceeded();

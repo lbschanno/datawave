@@ -27,7 +27,8 @@
         <module>../accumulo-utils</module>
         <module>../base-rest-responses</module>
         <module>../type-utils</module>
-        <module>../metadata-utils</module>
+        <!-- Included in root pom. Add back once metadata-utils v1.4 is released/deployed
+        <module>../metadata-utils</module>-->
         <module>../metrics-reporter</module>
         <module>../authorization-api</module>
         <module>../audit-api</module>
