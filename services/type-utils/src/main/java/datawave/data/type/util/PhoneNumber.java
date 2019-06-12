@@ -369,18 +369,6 @@ public class PhoneNumber implements Serializable, Comparable<PhoneNumber> {
     public int compareTo(PhoneNumber o) {
         return this.toNormalizedString().compareTo(o.toNormalizedString());
     }
-    
-    /*@Override
-    public boolean equals(Object o) {
-        if (o instanceof PhoneNumber) {
-            *//**
-             * Consider phone numbers equal if they have the same normalized form.
-             *//*
-            return this.toNormalizedString().equals(((PhoneNumber) o).toNormalizedString());
-        } else {
-            return false;
-        }
-    }*/
 
     @Override
     public boolean equals(Object o) {
