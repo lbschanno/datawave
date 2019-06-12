@@ -370,25 +370,33 @@ public class PhoneNumber implements Serializable, Comparable<PhoneNumber> {
         return this.toNormalizedString().compareTo(o.toNormalizedString());
     }
     
-    @Override
+    /*@Override
     public boolean equals(Object o) {
         if (o instanceof PhoneNumber) {
-            /**
+            *//**
              * Consider phone numbers equal if they have the same normalized form.
-             */
+             *//*
             return this.toNormalizedString().equals(((PhoneNumber) o).toNormalizedString());
         } else {
             return false;
         }
+    }*/
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        PhoneNumber that = (PhoneNumber) o;
+
+        return normalizedPhoneNumber != null ? normalizedPhoneNumber.equals(that.normalizedPhoneNumber) : that.normalizedPhoneNumber == null;
     }
-    
+
     @Override
     public int hashCode() {
-        int result = originalPhoneNumber != null ? originalPhoneNumber.hashCode() : 0;
-        result = 31 * result + (normalizedPhoneNumber != null ? normalizedPhoneNumber.hashCode() : 0);
-        return result;
+        return normalizedPhoneNumber != null ? normalizedPhoneNumber.hashCode() : 0;
     }
-    
+
     /**
      * Test if character is a digit.
      * 
