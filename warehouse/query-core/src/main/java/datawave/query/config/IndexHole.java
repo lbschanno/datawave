@@ -7,7 +7,7 @@ import java.io.Serializable;
  */
 public class IndexHole implements Serializable, Comparable<IndexHole> {
     private static final long serialVersionUID = -6778479621810682281L;
-
+    
     private String startValue;
     private String endValue;
     private String startDate;

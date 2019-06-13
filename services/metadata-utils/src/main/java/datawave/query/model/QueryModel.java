@@ -18,13 +18,13 @@ import com.google.common.collect.Sets;
 import datawave.util.StringUtils;
 
 public class QueryModel implements Serializable {
-
+    
     private static final long serialVersionUID = -7618411736250884135L;
     private static final String EMPTY_STR = "";
     public static final char PARAM_VALUE_SEP = ',';
     public static final String PARAM_VALUE_SEP_STR = new String(new char[] {PARAM_VALUE_SEP});
     public static final String LIMIT_FIELDS_ORIGINAL_COUNT_SUFFIX = "ORIGINAL_COUNT";
-
+    
     protected final Multimap<String,String> forwardQueryMapping;
     protected final Map<String,String> reverseQueryMapping;
     protected Set<String> unevalFields;

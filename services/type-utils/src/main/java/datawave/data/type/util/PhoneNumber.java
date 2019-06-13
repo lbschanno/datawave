@@ -369,22 +369,24 @@ public class PhoneNumber implements Serializable, Comparable<PhoneNumber> {
     public int compareTo(PhoneNumber o) {
         return this.toNormalizedString().compareTo(o.toNormalizedString());
     }
-
+    
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-
+        if (this == o)
+            return true;
+        if (o == null || getClass() != o.getClass())
+            return false;
+        
         PhoneNumber that = (PhoneNumber) o;
-
+        
         return normalizedPhoneNumber != null ? normalizedPhoneNumber.equals(that.normalizedPhoneNumber) : that.normalizedPhoneNumber == null;
     }
-
+    
     @Override
     public int hashCode() {
         return normalizedPhoneNumber != null ? normalizedPhoneNumber.hashCode() : 0;
     }
-
+    
     /**
      * Test if character is a digit.
      * 

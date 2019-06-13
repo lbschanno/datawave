@@ -25,7 +25,7 @@ import org.apache.commons.lang.builder.HashCodeBuilder;
  * entries compress <i>much</i> better in Accumulo.
  */
 public class SnowflakeUID extends UID {
-
+    
     private static final long serialVersionUID = 1856715886248436235L;
     private static final BigInteger TOO_BIG_BIGINT = BigInteger.ONE.shiftLeft(97);
     private static final String[] EMPTY_STRINGS = {};
@@ -70,7 +70,7 @@ public class SnowflakeUID extends UID {
      * Max value for the 24-bit sequence ID (3rd field of the overall Snowflake UID)
      */
     public static final int MAX_SEQUENCE_ID = 16777215;
-
+    
     private final int radix;
     private BigInteger snowflake;
     
