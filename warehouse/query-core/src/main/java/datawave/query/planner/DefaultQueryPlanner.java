@@ -1194,7 +1194,7 @@ public class DefaultQueryPlanner extends QueryPlanner implements Cloneable {
                     log.debug("No regex to expand");
                 }
                 
-                if (nodeCount.hasPossibleBoundedRange()) {
+                if (nodeCount.hasBoundedRange()) {
                     innerStopwatch = timers.newStartedStopwatch("DefaultQueryPlanner - Expand ranges");
                     queryTree = RangeConjunctionRebuildingVisitor.expandRanges(config, scannerFactory, metadataHelper, queryTree, config.isExpandFields(),
                                     config.isExpandValues());
@@ -1261,7 +1261,7 @@ public class DefaultQueryPlanner extends QueryPlanner implements Cloneable {
                         }
                     }
                     
-                    if (nodeCount.hasPossibleBoundedRange()) {
+                    if (nodeCount.hasBoundedRange()) {
                         queryTree = RangeConjunctionRebuildingVisitor.expandRanges(config, scannerFactory, metadataHelper, queryTree, config.isExpandFields(),
                                         config.isExpandValues());
                         if (log.isDebugEnabled()) {
