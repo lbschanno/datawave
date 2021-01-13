@@ -1271,12 +1271,13 @@ public class DefaultQueryPlanner extends QueryPlanner implements Cloneable {
                     // Check if there are functions that can be pushed into exceeded value ranges.
                     if (NodeTypeCountVisitor.countNodes(queryTree).hasAll(ASTFunctionNode.class, ExceededValueThresholdMarkerJexlNode.class)) {
                         queryTree = PushFunctionsIntoExceededValueRanges.pushFunctions(queryTree, metadataHelper, config.getDatatypeFilter());
-                        config.setExpandAllTerms(expandAllTerms);
                         if (log.isDebugEnabled()) {
                             logQuery(queryTree, "Query after expanding pushing functions into exceeded value ranges again:");
                         }
                     }
                     
+                    // Reset the original expandAllTerms value.
+                    config.setExpandAllTerms(expandAllTerms);
                 }
                 innerStopwatch.stop();
                 
