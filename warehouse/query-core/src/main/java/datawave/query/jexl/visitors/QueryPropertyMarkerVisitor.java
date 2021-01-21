@@ -1,31 +1,28 @@
 package datawave.query.jexl.visitors;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Lists;
+import com.google.common.collect.ImmutableMap;
 import datawave.query.jexl.JexlASTHelper;
+import datawave.query.jexl.JexlNodeFactory;
+import datawave.query.jexl.nodes.BoundedRange;
 import datawave.query.jexl.nodes.ExceededOrThresholdMarkerJexlNode;
 import datawave.query.jexl.nodes.ExceededTermThresholdMarkerJexlNode;
 import datawave.query.jexl.nodes.ExceededValueThresholdMarkerJexlNode;
 import datawave.query.jexl.nodes.IndexHoleMarkerJexlNode;
 import datawave.query.jexl.nodes.QueryPropertyMarker;
-import datawave.query.jexl.nodes.BoundedRange;
+import datawave.query.jexl.nodes.QueryPropertyMarker.Instance;
 import org.apache.commons.jexl2.parser.ASTAndNode;
 import org.apache.commons.jexl2.parser.ASTAssignment;
 import org.apache.commons.jexl2.parser.ASTDelayedPredicate;
 import org.apache.commons.jexl2.parser.ASTEvaluationOnly;
 import org.apache.commons.jexl2.parser.ASTOrNode;
-import org.apache.commons.jexl2.parser.ASTReference;
-import org.apache.commons.jexl2.parser.ASTReferenceExpression;
 import org.apache.commons.jexl2.parser.JexlNode;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Deque;
-import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.apache.commons.jexl2.parser.JexlNodes.children;
 
@@ -37,129 +34,92 @@ import static org.apache.commons.jexl2.parser.JexlNodes.children;
 public class QueryPropertyMarkerVisitor extends BaseVisitor {
     
     // @formatter:off
-    private static final Set<String> DEFAULT_TYPES = ImmutableSet.of(
-                    IndexHoleMarkerJexlNode.class.getSimpleName(),
-                    ASTDelayedPredicate.class.getSimpleName(),
-                    ASTEvaluationOnly.class.getSimpleName(),
-                    ExceededOrThresholdMarkerJexlNode.class.getSimpleName(),
-                    ExceededTermThresholdMarkerJexlNode.class.getSimpleName(),
-                    ExceededValueThresholdMarkerJexlNode.class.getSimpleName(),
-                    BoundedRange.class.getSimpleName());
+    private static final Map<String,Class<? extends QueryPropertyMarker>> IDENTIFIERS = new ImmutableMap.Builder<String,Class<? extends QueryPropertyMarker>>()
+                    .put(IndexHoleMarkerJexlNode.class.getSimpleName(), IndexHoleMarkerJexlNode.class)
+                    .put(ASTDelayedPredicate.class.getSimpleName(), ASTDelayedPredicate.class)
+                    .put(ASTEvaluationOnly.class.getSimpleName(), ASTEvaluationOnly.class)
+                    .put(ExceededOrThresholdMarkerJexlNode.class.getSimpleName(), ExceededOrThresholdMarkerJexlNode.class)
+                    .put(ExceededValueThresholdMarkerJexlNode.class.getSimpleName(), ExceededValueThresholdMarkerJexlNode.class)
+                    .put(ExceededTermThresholdMarkerJexlNode.class.getSimpleName(), ExceededTermThresholdMarkerJexlNode.class)
+                    .put(BoundedRange.class.getSimpleName(), BoundedRange.class).build();
     // @formatter:on
     
-    // @formatter:off
-    private static final List<Class<? extends QueryPropertyMarker>> DELAYED_PREDICATE_TYPES = ImmutableList.of(
-                    IndexHoleMarkerJexlNode.class,
-                    ASTDelayedPredicate.class,
-                    ASTEvaluationOnly.class,
-                    ExceededOrThresholdMarkerJexlNode.class,
-                    ExceededTermThresholdMarkerJexlNode.class,
-                    ExceededValueThresholdMarkerJexlNode.class);
-    // @formatter:on
+    /**
+     * Examine the specified node to see if it represents a query property marker, and return an {@link Instance} with the marker's type and source node. If the
+     * specified node is not a marker type, an empty {@link Instance} will be returned.
+     * 
+     * @param node
+     *            the node
+     * @return an {@link Instance}
+     */
+    public static Instance getInstance(JexlNode node) {
+        return getInstance(node, false);
+    }
     
-    protected Set<String> typeIdentifiers = new HashSet<>();
-    protected List<JexlNode> sourceNodes;
+    /**
+     * This method differs from {@link #getInstance(JexlNode)} only in that if the specified node is a marker type, a safe copy of the node's source will be
+     * made before being returned in the {@link Instance}. This is necessary for the {@link TreeFlatteningRebuildingVisitor}.
+     * 
+     * @param node
+     *            the node
+     * @return an {@link Instance}
+     */
+    public static Instance getCopiedInstance(JexlNode node) {
+        return getInstance(node, true);
+    }
     
-    private boolean identifierFound = false;
+    /**
+     * Examine the specified node to see if it represents a query property marker, and return an {@link Instance} with the marker's type and source node. If the
+     * specified node is not a marker type, an empty {@link Instance} will be returned. If specified, safe copies will be made of the node's source.
+     * 
+     * @param node
+     *            the possible marker
+     * @param copySources
+     *            if true, make safe copies of the node's source
+     * @return an {@link Instance}
+     */
+    private static Instance getInstance(JexlNode node, boolean copySources) {
+        if (node != null) {
+            QueryPropertyMarkerVisitor visitor = new QueryPropertyMarkerVisitor();
+            node.jjtAccept(visitor, null);
+            if (visitor.markerFound()) {
+                JexlNode source = consolidate(visitor.sourceNodes, copySources);
+                return Instance.of(visitor.marker, source);
+            }
+        }
+        return Instance.of();
+    }
     
-    protected Set<String> rejectedIdentifiers = new HashSet<>();
-    private boolean rejectedIdentifiersFound = false;
+    private static JexlNode consolidate(List<JexlNode> nodes, boolean copy) {
+        // @formatter:off
+        nodes = nodes.stream()
+                        .map((node) -> copy ? RebuildingVisitor.copy(node) : node) // Make a safe copy if necessary.
+                        .map(JexlASTHelper::dereference) // Unwrap each node.
+                        .collect(Collectors.toList());
+        // @formatter:on
+        
+        if (nodes.isEmpty()) {
+            return null;
+        } else if (nodes.size() == 1) {
+            return nodes.get(0);
+        } else {
+            return JexlNodeFactory.createUnwrappedAndNode(nodes);
+        }
+    }
+    
+    private Class<? extends QueryPropertyMarker> marker;
+    private List<JexlNode> sourceNodes;
+    private boolean visitedFirstAndNode;
     
     private QueryPropertyMarkerVisitor() {}
     
-    public static boolean instanceOfAny(JexlNode node) {
-        return instanceOfAny(node, null);
-    }
-    
-    public static boolean instanceOfAny(JexlNode node, List<JexlNode> sourceNodes) {
-        return instanceOf(node, (Set) null, sourceNodes);
-    }
-    
-    public static boolean instanceOf(JexlNode node, Set<Class<? extends QueryPropertyMarker>> types, List<JexlNode> sourceNodes) {
-        return instanceOf(node, types != null ? Lists.newArrayList(types) : null, sourceNodes);
-    }
-    
-    public static boolean instanceOfAnyExcept(JexlNode node, List<Class<? extends QueryPropertyMarker>> except) {
-        return instanceOfAnyExcept(node, except, null);
-    }
-    
-    public static boolean instanceOfAnyExcept(JexlNode node, List<Class<? extends QueryPropertyMarker>> except, List<JexlNode> sourceNodes) {
-        return instanceOf(node, null, except, sourceNodes);
-    }
-    
-    public static boolean instanceOf(JexlNode node, Class<? extends QueryPropertyMarker> type, List<JexlNode> sourceNodes) {
-        return instanceOf(node, type == null ? null : Collections.singletonList(type), null, sourceNodes);
-    }
-    
-    public static boolean instanceOf(JexlNode node, List<Class<? extends QueryPropertyMarker>> types, List<JexlNode> sourceNodes) {
-        return instanceOf(node, types, null, sourceNodes);
-    }
-    
-    /**
-     * Return whether or not the provided node is a delayed predicate type.
-     *
-     * @param node
-     *            the node
-     * @return true if the node is a delayed predicate, or false otherwise
-     */
-    public static boolean isDelayedPredicate(JexlNode node) {
-        return instanceOf(node, DELAYED_PREDICATE_TYPES, null);
-    }
-    
-    /**
-     * Check a node for any QueryPropertyMarker in types as long as it doesn't have any QueryPropertyMarkers in except
-     *
-     * @param node
-     * @param types
-     * @param except
-     * @param sourceNodes
-     * @return true if at least one of the types QueryPropertyMarkers exists and there are no QueryPropertyMarkers from except, false otherwise
-     */
-    public static boolean instanceOf(JexlNode node, List<Class<? extends QueryPropertyMarker>> types, List<Class<? extends QueryPropertyMarker>> except,
-                    List<JexlNode> sourceNodes) {
-        QueryPropertyMarkerVisitor visitor = new QueryPropertyMarkerVisitor();
-        
-        if (node != null) {
-            if (types != null)
-                types.forEach(type -> visitor.typeIdentifiers.add(type.getSimpleName()));
-            else
-                visitor.typeIdentifiers.addAll(DEFAULT_TYPES);
-            
-            if (except != null) {
-                except.forEach(e -> visitor.rejectedIdentifiers.add(e.getSimpleName()));
-            }
-            
-            node.jjtAccept(visitor, null);
-            
-            if (visitor.identifierFound) {
-                if (sourceNodes != null)
-                    for (JexlNode sourceNode : visitor.sourceNodes)
-                        sourceNodes.add(trimReferenceNodes(sourceNode));
-                return !visitor.rejectedIdentifiersFound;
-            }
-        }
-        
-        return false;
-    }
-    
-    private static JexlNode trimReferenceNodes(JexlNode node) {
-        if ((node instanceof ASTReference || node instanceof ASTReferenceExpression) && node.jjtGetNumChildren() == 1)
-            return trimReferenceNodes(node.jjtGetChild(0));
-        return node;
-    }
-    
     @Override
     public Object visit(ASTAssignment node, Object data) {
-        if (data != null) {
-            Set foundIdentifiers = (Set) data;
-            
+        // Do not search for a marker in any assignment nodes that are not within the first AND node.
+        if (visitedFirstAndNode) {
             String identifier = JexlASTHelper.getIdentifier(node);
             if (identifier != null) {
-                foundIdentifiers.add(identifier);
-            }
-            
-            if (rejectedIdentifiers.contains(identifier)) {
-                rejectedIdentifiersFound = true;
+                marker = IDENTIFIERS.get(identifier);
             }
         }
         return null;
@@ -167,58 +127,72 @@ public class QueryPropertyMarkerVisitor extends BaseVisitor {
     
     @Override
     public Object visit(ASTOrNode node, Object data) {
+        // Do not descend into children of OR nodes.
         return null;
     }
     
     @Override
     public Object visit(ASTAndNode node, Object data) {
-        // if this is an and node, and it is the first one we've
-        // found, it is our potential candidate
-        if (data == null) {
-            List<JexlNode> siblingNodes = new ArrayList<>();
+        // Only the first AND node is a potential marker candidate.
+        if (!visitedFirstAndNode) {
+            visitedFirstAndNode = true;
             
-            Deque<JexlNode> siblings = new LinkedList<>();
-            Deque<JexlNode> stack = new LinkedList<>();
-            stack.push(node);
+            // Get the flattened children.
+            List<JexlNode> children = getFlattenedChildren(node);
             
-            // for the purposes of this method, nested and nodes are
-            // ignored, and their children are handled as direct children
-            // of the parent and node.
-            while (!stack.isEmpty()) {
-                JexlNode descendant = stack.pop();
-                
-                if (descendant instanceof ASTAndNode) {
-                    for (JexlNode sibling : children(descendant))
-                        stack.push(sibling);
-                } else {
-                    siblings.push(descendant);
-                }
-            }
-            
-            // check each child to see if we found our identifier, and
-            // save off the siblings as potential source nodes
-            for (JexlNode child : siblings) {
-                
-                // don't look for identifiers if we already found what we were looking for
-                if (!identifierFound) {
-                    Set<String> foundIdentifiers = new HashSet<>();
-                    child.jjtAccept(this, foundIdentifiers);
-                    
-                    foundIdentifiers.retainAll(typeIdentifiers);
-                    
-                    // if we found our identifier, proceed to the next child node
-                    if (!foundIdentifiers.isEmpty()) {
-                        identifierFound = true;
+            // Examine each child for a marker identifier.
+            List<JexlNode> siblings = new ArrayList<>();
+            for (JexlNode child : children) {
+                // Look for a marker only if one hasn't been found yet.
+                if (!markerFound()) {
+                    child.jjtAccept(this, null);
+                    // / If a marker was found, continue and do not add this node as a sibling.
+                    if (markerFound()) {
                         continue;
                     }
                 }
                 
-                siblingNodes.add(child);
+                siblings.add(child);
             }
             
-            if (identifierFound)
-                sourceNodes = siblingNodes;
+            // If a marker was found, assign the source nodes.
+            if (markerFound())
+                sourceNodes = siblings;
         }
         return null;
+    }
+    
+    /**
+     * Return the flattened children of the specified node. Nested {@link ASTAndNode} nodes are ignored, and their children are considered direct children for
+     * the parent {@link ASTAndNode} node.
+     *
+     * @param node
+     *            the node to retrieve the flattened children of
+     * @return the flattened children
+     */
+    private List<JexlNode> getFlattenedChildren(JexlNode node) {
+        List<JexlNode> children = new ArrayList<>();
+        Deque<JexlNode> stack = new LinkedList<>();
+        stack.push(node);
+        while (!stack.isEmpty()) {
+            JexlNode descendent = stack.pop();
+            if (descendent instanceof ASTAndNode) {
+                for (JexlNode sibling : children(descendent)) {
+                    stack.push(sibling);
+                }
+            } else {
+                children.add(descendent);
+            }
+        }
+        return children;
+    }
+    
+    /**
+     * Return whether or not a {@link QueryPropertyMarker} has been found yet.
+     *
+     * @return true if a marker has been found, or false otherwise
+     */
+    private boolean markerFound() {
+        return marker != null;
     }
 }

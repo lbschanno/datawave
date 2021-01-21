@@ -1,6 +1,5 @@
 package datawave.query.jexl.visitors;
 
-import com.google.common.collect.Lists;
 import datawave.query.config.ShardQueryConfiguration;
 import datawave.query.exceptions.DatawaveFatalQueryException;
 import datawave.query.exceptions.IllegalRangeArgumentException;
@@ -24,21 +23,13 @@ import datawave.webservice.common.logging.ThreadConfigurableLogger;
 import datawave.webservice.query.exception.DatawaveErrorCode;
 import datawave.webservice.query.exception.QueryException;
 import org.apache.accumulo.core.client.TableNotFoundException;
-import org.apache.commons.jexl2.parser.ASTAndNode;
 import org.apache.commons.jexl2.parser.ASTEQNode;
 import org.apache.commons.jexl2.parser.ASTEvaluationOnly;
-import org.apache.commons.jexl2.parser.ASTGENode;
-import org.apache.commons.jexl2.parser.ASTGTNode;
-import org.apache.commons.jexl2.parser.ASTLENode;
-import org.apache.commons.jexl2.parser.ASTLTNode;
 import org.apache.commons.jexl2.parser.ASTReference;
 import org.apache.commons.jexl2.parser.JexlNode;
-import org.apache.commons.jexl2.parser.JexlNodes;
 import org.apache.commons.jexl2.parser.ParserTreeConstants;
 import org.apache.log4j.Logger;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 
@@ -107,11 +98,11 @@ public class RangeConjunctionRebuildingVisitor extends RebuildingVisitor {
     
     @Override
     public Object visit(ASTReference node, Object data) {
-        List<Class<? extends QueryPropertyMarker>> markers = Lists.newArrayList(new Class[] {IndexHoleMarkerJexlNode.class, ASTEvaluationOnly.class,
-                ExceededValueThresholdMarkerJexlNode.class, ExceededTermThresholdMarkerJexlNode.class, ExceededOrThresholdMarkerJexlNode.class});
-        if (QueryPropertyMarkerVisitor.instanceOf(node, markers, null)) {
+        QueryPropertyMarker.Instance instance = QueryPropertyMarker.findInstance(node);
+        if (instance.isAnyTypeOf(IndexHoleMarkerJexlNode.class, ASTEvaluationOnly.class, ExceededValueThresholdMarkerJexlNode.class,
+                        ExceededTermThresholdMarkerJexlNode.class, ExceededOrThresholdMarkerJexlNode.class)) {
             return node;
-        } else if (BoundedRange.instanceOf(node)) {
+        } else if (instance.isType(BoundedRange.class)) {
             LiteralRange range = JexlASTHelper.findRange().indexedOnly(this.config.getDatatypeFilter(), this.helper).notDelayed().getRange(node);
             if (range != null) {
                 return expandIndexBoundedRange(range, node);

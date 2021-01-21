@@ -258,7 +258,7 @@ public class ParallelIndexExpansion extends RebuildingVisitor {
         // if we have already marked this regex as exceeding the threshold, then no
         if (markedParents != null) {
             for (JexlNode markedParent : markedParents) {
-                if (ExceededValueThresholdMarkerJexlNode.instanceOf(markedParent)) {
+                if (QueryPropertyMarker.findInstance(markedParent).isType(ExceededValueThresholdMarkerJexlNode.class)) {
                     return false;
                 }
             }
@@ -284,7 +284,7 @@ public class ParallelIndexExpansion extends RebuildingVisitor {
         Set<JexlNode> markedParents = (data != null && data instanceof Set) ? (Set) data : null;
         
         // check to see if this is a delayed node already
-        if (QueryPropertyMarker.instanceOf(node, null)) {
+        if (QueryPropertyMarker.findInstance(node).isAnyType()) {
             markedParents = new HashSet<>();
             markedParents.add(node);
         }
@@ -314,13 +314,12 @@ public class ParallelIndexExpansion extends RebuildingVisitor {
             boolean exceededValueMarker = false;
             boolean exceededTermMarker = false;
             for (JexlNode markedParent : markedParents) {
-                if (QueryPropertyMarker.instanceOf(markedParent, ASTEvaluationOnly.class)) {
+                QueryPropertyMarker.Instance instance = QueryPropertyMarker.findInstance(markedParent);
+                if (instance.isType(ASTEvaluationOnly.class)) {
                     evalOnly = true;
-                }
-                if (QueryPropertyMarker.instanceOf(markedParent, ExceededValueThresholdMarkerJexlNode.class)) {
+                } else if (instance.isType(ExceededValueThresholdMarkerJexlNode.class)) {
                     exceededValueMarker = true;
-                }
-                if (QueryPropertyMarker.instanceOf(markedParent, ExceededTermThresholdMarkerJexlNode.class)) {
+                } else if (instance.isType(ExceededTermThresholdMarkerJexlNode.class)) {
                     exceededTermMarker = true;
                 }
             }
@@ -377,7 +376,7 @@ public class ParallelIndexExpansion extends RebuildingVisitor {
                 }
                 if (markedParents != null) {
                     for (JexlNode markedParent : markedParents) {
-                        if (QueryPropertyMarker.instanceOf(markedParent, null))
+                        if (QueryPropertyMarker.findInstance(markedParent).isAnyType())
                             return node;
                     }
                 }
@@ -508,7 +507,7 @@ public class ParallelIndexExpansion extends RebuildingVisitor {
             }
             default: {
                 JexlNode[] children = children(node);
-                if (children.length == 1 && !QueryPropertyMarker.instanceOf(children[0], null)) {
+                if (children.length == 1 && !QueryPropertyMarker.findInstance(children[0]).isAnyType()) {
                     boolean expand = descendIntoSubtree(children[0], visited);
                     visited.put(node, expand);
                     return expand;

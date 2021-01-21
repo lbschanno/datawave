@@ -1,27 +1,44 @@
 package datawave.query.jexl.nodes;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-
-import datawave.query.jexl.JexlASTHelper;
+import com.google.common.collect.ImmutableSet;
 import datawave.query.jexl.JexlNodeFactory;
-
 import datawave.query.jexl.visitors.QueryPropertyMarkerVisitor;
-import org.apache.commons.jexl2.parser.ASTAndNode;
+import org.apache.commons.jexl2.parser.ASTDelayedPredicate;
+import org.apache.commons.jexl2.parser.ASTEvaluationOnly;
 import org.apache.commons.jexl2.parser.ASTReference;
 import org.apache.commons.jexl2.parser.ASTReferenceExpression;
 import org.apache.commons.jexl2.parser.JexlNode;
 import org.apache.commons.jexl2.parser.Parser;
 import org.apache.commons.jexl2.parser.ParserTreeConstants;
-import org.apache.log4j.Logger;
+
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Objects;
+import java.util.Set;
 
 /**
  * This is a node that can be put in place of an underlying reference node to place a property on an underlying query sub-tree (e.g. ExceededValueThreshold)
  */
 public class QueryPropertyMarker extends ASTReference {
     
-    private static final Logger log = Logger.getLogger(QueryPropertyMarker.class);
+    // @formatter:off
+    @SuppressWarnings("unchecked")
+    private static final Set<Class<? extends QueryPropertyMarker>> DELAYED_PREDICATES = ImmutableSet.of(
+                    IndexHoleMarkerJexlNode.class,
+                    ASTDelayedPredicate.class,
+                    ASTEvaluationOnly.class,
+                    ExceededOrThresholdMarkerJexlNode.class,
+                    ExceededTermThresholdMarkerJexlNode.class,
+                    ExceededValueThresholdMarkerJexlNode.class
+    );
+    // @formatter:on
+    
+    // @formatter:off
+    private static final Set<Class<? extends QueryPropertyMarker>> IVARATORS = ImmutableSet.of(
+                    ExceededTermThresholdMarkerJexlNode.class,
+                    ExceededOrThresholdMarkerJexlNode.class,
+                    ExceededValueThresholdMarkerJexlNode.class);
+    // @formatter:on
     
     public QueryPropertyMarker() {
         this(ParserTreeConstants.JJTREFERENCE);
@@ -36,12 +53,26 @@ public class QueryPropertyMarker extends ASTReference {
     }
     
     /**
-     * This will create a structure as follows around the specified node: Reference (this node) Reference Expression AND Reference Reference Expression
-     * Assignment Reference Identifier:(this class' simple name) True Reference Reference Expression source (the one specified)
-     * 
-     * Hence the resulting expression will be (({class name} = True) AND ({specified node}))
+     * Returns a new instance of a query property marker with the specified source. This node's will be built around the provided source with the resulting
+     * expression <code>(({markerClassName} = true) && ({source}))</code> with the following structure:
+     *
+     * <pre>
+     * Reference
+     *  ReferenceExpression
+     *    AndNode
+     *      Reference
+     *        ReferenceExpression
+     *          Assignment
+     *            Reference
+     *              Identifier:{class name}
+     *            TrueNode
+     *      Reference
+     *        ReferenceExpression
+     *          {source}
+     * </pre>
      * 
      * @param source
+     *            the source of this property marker
      */
     public QueryPropertyMarker(JexlNode source) {
         this();
@@ -72,36 +103,185 @@ public class QueryPropertyMarker extends ASTReference {
     }
     
     /**
-     * A routine to determine whether an and node is actually a specific instance of a query marker. The reason for this routine is that if the query is
-     * serialized and deserialized, then only the underlying assignment will persist. Any node within the tree originally created except for a sibling of the
-     * source can be used here.
-     *
+     * Determine if the specified node represents a query property marker, and return an {@link Instance} with the marker type and source, if present.
+     * 
      * @param node
-     * @param type
-     *            The type to look for
-     * @return true if this and node is a query marker
+     *            the node
+     * @return an {@link Instance}
      */
-    public static boolean instanceOf(JexlNode node, Class<? extends QueryPropertyMarker> type) {
-        return QueryPropertyMarkerVisitor.instanceOf(node, type, null);
+    public static Instance findInstance(JexlNode node) {
+        return QueryPropertyMarkerVisitor.getInstance(node);
     }
     
-    /**
-     * A routine to determine the node which is the source of the query property (i.e. the one passed into the constructor of this class)
-     *
-     * @param node
-     * @param type
-     *            The type to look for
-     * @return the source node or null if not an a query property marker
-     */
-    public static JexlNode getQueryPropertySource(JexlNode node, Class<? extends QueryPropertyMarker> type) {
-        List<JexlNode> sourceNodes = new ArrayList<>();
-        if (QueryPropertyMarkerVisitor.instanceOf(node, type, sourceNodes) && !sourceNodes.isEmpty()) {
-            if (sourceNodes.size() == 1)
-                return sourceNodes.get(0);
-            else
-                return JexlNodeFactory.createUnwrappedAndNode(sourceNodes);
+    public static final class Instance {
+        
+        private static final Instance EMPTY_INSTANCE = new Instance(null, null);
+        
+        /**
+         * Return an immutable instance of {@link Instance} with a null type and null source.
+         *
+         * @return the immutable empty instance
+         */
+        public static Instance of() {
+            return EMPTY_INSTANCE;
         }
         
-        return null;
+        /**
+         * Return a new {@link Instance} with the specified type and source.
+         *
+         * @param type
+         *            the type
+         * @param source
+         *            the source
+         * @return the new {@link Instance}
+         */
+        public static Instance of(Class<? extends QueryPropertyMarker> type, JexlNode source) {
+            return new Instance(type, source);
+        }
+        
+        /**
+         * The {@link QueryPropertyMarker} type that the node this {@link Instance} represents is.
+         */
+        private final Class<? extends QueryPropertyMarker> type;
+        
+        private final JexlNode source;
+        
+        private Instance(Class<? extends QueryPropertyMarker> type, JexlNode source) {
+            this.type = type;
+            this.source = source;
+        }
+        
+        /**
+         * Return the class of the {@link QueryPropertyMarker} type that the node this instance represents is, or null if the node is not any marker type.
+         *
+         * @return the marker type this instance is, or null if the instance is not a marker
+         */
+        public Class<? extends QueryPropertyMarker> getType() {
+            return type;
+        }
+        
+        /**
+         * Return whether or not this instance represents a node that is any {@link QueryPropertyMarker} type.
+         *
+         * @return true if this instance is any {@link QueryPropertyMarker} or false otherwise
+         */
+        public boolean isAnyType() {
+            return type != null;
+        }
+        
+        /**
+         * Return whether or not this instance has the specified type.
+         *
+         * @param type
+         *            the type
+         * @return true if this instance has the specified type, or false otherwise
+         */
+        public boolean isType(Class<? extends QueryPropertyMarker> type) {
+            return Objects.equals(type, this.type);
+        }
+        
+        /**
+         * Return whether or not this instance represents a node that is a marker of any of the specified types.
+         *
+         * @param types
+         *            the types
+         * @return true if this instance is a marker of any of the specified types, or false otherwise
+         */
+        @SafeVarargs
+        public final boolean isAnyTypeOf(Class<? extends QueryPropertyMarker>... types) {
+            return isAnyType() && Arrays.stream(types).anyMatch(this::isType);
+        }
+        
+        /**
+         * Return whether or not this instance represents a node that is a marker of any of the specified types.
+         *
+         * @param types
+         *            the types
+         * @return true if this instance is a marker of any of the specified types, or false otherwise
+         * @throws java.lang.NullPointerException
+         *             if the provided collection is null
+         */
+        public boolean isAnyTypeOf(Collection<Class<? extends QueryPropertyMarker>> types) {
+            return isAnyType() && types.stream().anyMatch(this::isType);
+        }
+        
+        /**
+         * Return whether or not this instance represents a node that is a marker, but is not a marker of any of the specified types.
+         *
+         * @param types
+         *            the types
+         * @return true if this instance is a marker that is not any of the specified types, or false otherwise
+         */
+        @SafeVarargs
+        public final boolean isAnyTypeExcept(Class<? extends QueryPropertyMarker>... types) {
+            return isAnyType() && Arrays.stream(types).noneMatch(this::isType);
+        }
+        
+        /**
+         * Return whether or not this instance represents a node that is a marker, but is not a marker of any of the specified types.
+         *
+         * @param types
+         *            the types
+         * @return true if this instance is a marker that is not any of the specified types, or false otherwise
+         * @throws java.lang.NullPointerException
+         *             if the provided collection is null
+         */
+        public boolean isAnyTypeExcept(Collection<Class<? extends QueryPropertyMarker>> types) {
+            return isAnyType() && types.stream().noneMatch(this::isType);
+        }
+        
+        /**
+         * Return whether or not this instance represents a node that is not a marker of any of the specified types. It is possible that this instance is not a
+         * marker at all.
+         *
+         * @param types
+         *            the types
+         * @return true if this instance is not a marker of any of the specified types, or false otherwise
+         */
+        @SafeVarargs
+        public final boolean isNotAnyTypeOf(Class<? extends QueryPropertyMarker>... types) {
+            return !isAnyType() || Arrays.stream(types).noneMatch(this::isType);
+        }
+        
+        /**
+         * Return whether or not this instance represents a node that is not a marker of any of the specified types. It is possible that this instance is not a
+         * marker at all.
+         *
+         * @param types
+         *            the types
+         * @return true if this instance is not a marker of any of the specified types, or false otherwise
+         * @throws java.lang.NullPointerException
+         *             if the provided collection is null
+         */
+        public final boolean isNotAnyTypeOf(Collection<Class<? extends QueryPropertyMarker>> types) {
+            return !isAnyType() || types.stream().noneMatch(this::isType);
+        }
+        
+        /**
+         * Return whether or not this instance is any delayed predicate type.
+         * 
+         * @return true if this instance is a delayed predicate type, or false otherwise
+         */
+        public boolean isDelayedPredicate() {
+            return isAnyTypeOf(DELAYED_PREDICATES);
+        }
+        
+        /**
+         * Return whether or not this instance is any ivarator type.
+         * 
+         * @return true if this instance is an ivarator type, or false otherwise
+         */
+        public boolean isIvarator() {
+            return isAnyTypeOf(IVARATORS);
+        }
+        
+        /**
+         * Return the source node for the query property if this instance is a marker, or null otherwise.
+         *
+         * @return the source node, possibly null
+         */
+        public JexlNode getSource() {
+            return source;
+        }
     }
 }

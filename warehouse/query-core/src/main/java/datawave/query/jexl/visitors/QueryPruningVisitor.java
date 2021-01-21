@@ -254,7 +254,7 @@ public class QueryPruningVisitor extends BaseVisitor {
     @Override
     public Object visit(ASTAndNode node, Object data) {
         // do not process query property markers
-        if (QueryPropertyMarker.instanceOf(node, null)) {
+        if (QueryPropertyMarker.findInstance(node).isAnyType()) {
             return TruthState.UNKNOWN;
         }
         
