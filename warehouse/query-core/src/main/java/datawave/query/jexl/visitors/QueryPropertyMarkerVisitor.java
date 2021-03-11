@@ -1,6 +1,6 @@
 package datawave.query.jexl.visitors;
 
-import com.google.common.collect.ImmutableMap;
+import com.google.common.base.Preconditions;
 import datawave.query.jexl.JexlASTHelper;
 import datawave.query.jexl.JexlNodeFactory;
 import datawave.query.jexl.nodes.BoundedRange;
@@ -17,11 +17,16 @@ import org.apache.commons.jexl2.parser.ASTEvaluationOnly;
 import org.apache.commons.jexl2.parser.ASTOrNode;
 import org.apache.commons.jexl2.parser.JexlNode;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Deque;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.apache.commons.jexl2.parser.JexlNodes.children;
@@ -33,21 +38,72 @@ import static org.apache.commons.jexl2.parser.JexlNodes.children;
  */
 public class QueryPropertyMarkerVisitor extends BaseVisitor {
     
-    // @formatter:off
-    private static final Map<String,Class<? extends QueryPropertyMarker>> IDENTIFIERS = new ImmutableMap.Builder<String,Class<? extends QueryPropertyMarker>>()
-                    .put(IndexHoleMarkerJexlNode.class.getSimpleName(), IndexHoleMarkerJexlNode.class)
-                    .put(ASTDelayedPredicate.class.getSimpleName(), ASTDelayedPredicate.class)
-                    .put(ASTEvaluationOnly.class.getSimpleName(), ASTEvaluationOnly.class)
-                    .put(ExceededOrThresholdMarkerJexlNode.class.getSimpleName(), ExceededOrThresholdMarkerJexlNode.class)
-                    .put(ExceededValueThresholdMarkerJexlNode.class.getSimpleName(), ExceededValueThresholdMarkerJexlNode.class)
-                    .put(ExceededTermThresholdMarkerJexlNode.class.getSimpleName(), ExceededTermThresholdMarkerJexlNode.class)
-                    .put(BoundedRange.class.getSimpleName(), BoundedRange.class).build();
-    // @formatter:on
+    private static final Map<String,Class<? extends QueryPropertyMarker>> markers = new HashMap<>();
+    private static final Set<String> registeredMarkers = new HashSet<>();
+    
+    /**
+     * Register a query property marker type so that it may be identified by {@link QueryPropertyMarkerVisitor}.
+     * 
+     * @param marker
+     *            the marker type
+     * @return true if the marker was not already registered, or false otherwise
+     * @throws NoSuchMethodException
+     *             if the marker type does not override {@link QueryPropertyMarker#label()}
+     * @throws InvocationTargetException
+     *             if the marker's label() method cannot be invoked
+     * @throws IllegalAccessException
+     *             if the marker's label() method cannot be accessed
+     */
+    public static boolean registerMarker(Class<? extends QueryPropertyMarker> marker) throws NoSuchMethodException, InvocationTargetException,
+                    IllegalAccessException {
+        Preconditions.checkNotNull(marker, "Marker class must not be null");
+        
+        // Check if this marker type has already been registered. This is a safeguard to avoid the reflection steps below if possible.
+        if (registeredMarkers.contains(marker.getName())) {
+            return false;
+        } else {
+            // Get the label via reflection by calling the static label() method.
+            Method method = marker.getDeclaredMethod("label");
+            String label = (String) method.invoke(null);
+            
+            // Verify the label returned is not null or empty. This will ensure a query marker is not registered without properly overriding the base
+            // QueryPropertyMarker.label() method.
+            if (label == null || label.isEmpty()) {
+                throw new IllegalArgumentException("label() method must return a unique, non-empty label for type " + marker.getName());
+            }
+            
+            // Verify the label is unique. This will ensure a query marker is registered with a conflicting label.
+            if (markers.containsKey(label)) {
+                Class<? extends QueryPropertyMarker> existingMarker = markers.get(label);
+                throw new IllegalArgumentException(marker.getName() + " has the same label as " + existingMarker.getName() + ", labels must be unique");
+            }
+            
+            // Register the marker.
+            markers.put(label, marker);
+            registeredMarkers.add(marker.getName());
+            return true;
+        }
+    }
+    
+    // Register known marker types.
+    static {
+        try {
+            registerMarker(IndexHoleMarkerJexlNode.class);
+            registerMarker(ASTDelayedPredicate.class);
+            registerMarker(ASTEvaluationOnly.class);
+            registerMarker(ExceededOrThresholdMarkerJexlNode.class);
+            registerMarker(ExceededTermThresholdMarkerJexlNode.class);
+            registerMarker(ExceededValueThresholdMarkerJexlNode.class);
+            registerMarker(BoundedRange.class);
+        } catch (NoSuchMethodException | InvocationTargetException | IllegalAccessException e) {
+            throw new RuntimeException("Failed to register default marker types for " + QueryPropertyMarkerVisitor.class.getName(), e);
+        }
+    }
     
     /**
      * Examine the specified node to see if it represents a query property marker, and return an {@link Instance} with the marker's type and source node. If the
      * specified node is not a marker type, an empty {@link Instance} will be returned.
-     * 
+     *
      * @param node
      *            the node
      * @return an {@link Instance}
@@ -59,7 +115,7 @@ public class QueryPropertyMarkerVisitor extends BaseVisitor {
     /**
      * This method differs from {@link #getInstance(JexlNode)} only in that if the specified node is a marker type, a safe copy of the node's source will be
      * made before being returned in the {@link Instance}. This is necessary for the {@link TreeFlatteningRebuildingVisitor}.
-     * 
+     *
      * @param node
      *            the node
      * @return an {@link Instance}
@@ -71,7 +127,7 @@ public class QueryPropertyMarkerVisitor extends BaseVisitor {
     /**
      * Examine the specified node to see if it represents a query property marker, and return an {@link Instance} with the marker's type and source node. If the
      * specified node is not a marker type, an empty {@link Instance} will be returned. If specified, safe copies will be made of the node's source.
-     * 
+     *
      * @param node
      *            the possible marker
      * @param copySources
@@ -119,7 +175,7 @@ public class QueryPropertyMarkerVisitor extends BaseVisitor {
         if (visitedFirstAndNode) {
             String identifier = JexlASTHelper.getIdentifier(node);
             if (identifier != null) {
-                marker = IDENTIFIERS.get(identifier);
+                marker = markers.get(identifier);
             }
         }
         return null;

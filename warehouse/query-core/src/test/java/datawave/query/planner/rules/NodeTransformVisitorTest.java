@@ -90,9 +90,9 @@ public class NodeTransformVisitorTest {
                 "BLA =~ '.*<bla>'";
         String expected = "BLA == 'x' && " +
                 "BLA =~ 'ab.*' && " +
-                "((ASTEvaluationOnly = true) && (BLA =~ 'a.*')) && " +
+                "((_Eval_ = true) && (BLA =~ 'a.*')) && " +
                 "BLA =~ 'okregex' && " +
-                "((ASTEvaluationOnly = true) && (BLA =~ '.*<bla>'))";
+                "((_Eval_ = true) && (BLA =~ '.*<bla>'))";
         // @formatter:on
         testPushdown(query, expected);
     }
@@ -107,9 +107,9 @@ public class NodeTransformVisitorTest {
                 "_ANYFIELD_ =~ '.*<bla>'";
         String expected = "BLA == 'x' && " +
                 "BLA =~ 'ab.*' && " +
-                "((ASTEvaluationOnly = true) && (BLA =~ 'a.*')) && " +
+                "((_Eval_ = true) && (BLA =~ 'a.*')) && " +
                 "BLA =~ 'okregex' && " +
-                "((ASTEvaluationOnly = true) && (_ANYFIELD_ =~ '.*<bla>'))";
+                "((_Eval_ = true) && (_ANYFIELD_ =~ '.*<bla>'))";
         // @formatter:on
         try {
             testPushdown(query, expected);
@@ -141,14 +141,14 @@ public class NodeTransformVisitorTest {
         // @formatter:off
         String query = "BLA == 'x' && " +
                 "BLA =~ 'ab.*' && (" +
-                "(ExceededValueThresholdMarkerJexlNode = true) && (BLA =~ 'a.*')) && " +
-                "((ExceededValueThresholdMarkerJexlNode = true) && (BLA =~ 'okregex')) && " +
+                "(_Value_ = true) && (BLA =~ 'a.*')) && " +
+                "((_Value_ = true) && (BLA =~ 'okregex')) && " +
                 "BLA =~ '.*<bla>'";
         String expected = "BLA == 'x' && " +
                 "BLA =~ 'ab.*' && " +
-                "((ExceededValueThresholdMarkerJexlNode = true) && (BLA =~ 'a.*')) && " +
-                "((ExceededValueThresholdMarkerJexlNode = true) && (BLA =~ 'okregex')) && " +
-                "((ASTEvaluationOnly = true) && (BLA =~ '.*<bla>'))";
+                "((_Value_ = true) && (BLA =~ 'a.*')) && " +
+                "((_Value_ = true) && (BLA =~ 'okregex')) && " +
+                "((_Eval_ = true) && (BLA =~ '.*<bla>'))";
         // @formatter:on
         testPushdown(query, expected);
     }
@@ -161,9 +161,9 @@ public class NodeTransformVisitorTest {
                 "BLA =~ 'a.*') && " +
                 "((BLA =~ 'okregex'))) && " +
                 "BLA =~ '.*<bla>')";
-        String expected = "(((ASTEvaluationOnly = true) && (BLA =~ '.*<bla>')) && " +
+        String expected = "(((_Eval_ = true) && (BLA =~ '.*<bla>')) && " +
                 "(((BLA =~ 'okregex')) && " +
-                "(((ASTEvaluationOnly = true) && (BLA =~ 'a.*')) && " +
+                "(((_Eval_ = true) && (BLA =~ 'a.*')) && " +
                 "BLA =~ 'ab.*' && " +
                 "BLA == 'x')))";
         // @formatter:on
@@ -178,9 +178,9 @@ public class NodeTransformVisitorTest {
                 "BLA =~ 'a.*' && " +
                 "BLA =~ 'okregex' && " +
                 "BLA =~ '.*<bla>'";
-        String expected = "((ASTEvaluationOnly = true) && (BLA =~ '.*<bla>')) && " +
+        String expected = "((_Eval_ = true) && (BLA =~ '.*<bla>')) && " +
                 "BLA =~ 'okregex' && " +
-                "((ASTEvaluationOnly = true) && (BLA =~ 'a.*')) && " +
+                "((_Eval_ = true) && (BLA =~ 'a.*')) && " +
                 "BLA =~ 'ab.*' && " +
                 "BLA == 'x'";
         // @formatter:on
@@ -200,9 +200,9 @@ public class NodeTransformVisitorTest {
                 "BLA =~ 'a.*' && " +
                 "BLA =~ 'ab.*' && " +
                 "BLA == 'x'";
-        String expected2 = "((ASTEvaluationOnly = true) && (BLA =~ '.*<bla>')) && " +
+        String expected2 = "((_Eval_ = true) && (BLA =~ '.*<bla>')) && " +
                 "BLA =~ 'okregex' && " +
-                "((ASTEvaluationOnly = true) && (BLA =~ 'a.*')) && " +
+                "((_Eval_ = true) && (BLA =~ 'a.*')) && " +
                 "BLA =~ 'ab.*' && " +
                 "BLA == 'x'";
         // @formatter:on

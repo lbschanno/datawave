@@ -19,7 +19,11 @@ import java.util.Set;
 /**
  * This is a node that can be put in place of an underlying reference node to place a property on an underlying query sub-tree (e.g. ExceededValueThreshold)
  */
-public class QueryPropertyMarker extends ASTReference {
+public abstract class QueryPropertyMarker extends ASTReference {
+    
+    public static String label() {
+        throw new IllegalStateException("Label hasn't been configured in subclass.");
+    }
     
     // @formatter:off
     @SuppressWarnings("unchecked")
@@ -80,11 +84,18 @@ public class QueryPropertyMarker extends ASTReference {
         setupSource(source);
     }
     
+    /**
+     * Return the identifier to use when marking a node as a specific {@link QueryPropertyMarker} type. This method must be overridden by all sub-types.
+     *
+     * @return the short label
+     */
+    public abstract String getLabel();
+    
     protected void setupSource(JexlNode source) {
         this.jjtSetParent(source.jjtGetParent());
         
-        // create the assignment using the class name wrapped in an expression
-        JexlNode refNode1 = JexlNodeFactory.createExpression(JexlNodeFactory.createAssignment(getClass().getSimpleName(), true));
+        // create the assignment using the label wrapped in an expression
+        JexlNode refNode1 = JexlNodeFactory.createExpression(JexlNodeFactory.createAssignment(getLabel(), true));
         
         // wrap the source in an expression, but only if needed
         JexlNode refNode2 = JexlNodeFactory.createExpression(source);
@@ -104,7 +115,7 @@ public class QueryPropertyMarker extends ASTReference {
     
     /**
      * Determine if the specified node represents a query property marker, and return an {@link Instance} with the marker type and source, if present.
-     * 
+     *
      * @param node
      *            the node
      * @return an {@link Instance}
@@ -259,7 +270,7 @@ public class QueryPropertyMarker extends ASTReference {
         
         /**
          * Return whether or not this instance is any delayed predicate type.
-         * 
+         *
          * @return true if this instance is a delayed predicate type, or false otherwise
          */
         public boolean isDelayedPredicate() {
@@ -268,7 +279,7 @@ public class QueryPropertyMarker extends ASTReference {
         
         /**
          * Return whether or not this instance is any ivarator type.
-         * 
+         *
          * @return true if this instance is an ivarator type, or false otherwise
          */
         public boolean isIvarator() {

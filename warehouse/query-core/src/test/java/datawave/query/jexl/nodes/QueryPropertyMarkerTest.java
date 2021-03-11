@@ -1,7 +1,6 @@
 package datawave.query.jexl.nodes;
 
 import com.google.common.collect.Sets;
-import datawave.query.jexl.visitors.PrintingVisitor;
 import org.apache.commons.jexl2.parser.ASTDelayedPredicate;
 import org.apache.commons.jexl2.parser.ASTEvaluationOnly;
 import org.apache.commons.jexl2.parser.JexlNode;
@@ -22,29 +21,21 @@ import static org.junit.Assert.assertTrue;
 public class QueryPropertyMarkerTest {
     
     @Test
-    public void testSetupSource() throws ParseException {
-        QueryPropertyMarker marker = new QueryPropertyMarker(parseJexlQuery("FOO == 'a' || FOO == 'b'"));
-        assertEquals("((QueryPropertyMarker = true) && (FOO == 'a' || FOO == 'b'))", buildQuery(marker));
-        
-        PrintingVisitor.printQuery(marker);
-    }
-    
-    @Test
     public void testFindInstance() throws ParseException {
         assertEmptyInstance(findInstance(null)); // Test null input
         assertEmptyInstance(findInstance("FOO == 1 && BAR == 2")); // Test node without marker
-        assertEmptyInstance(findInstance("ABC == 'aaa' && ((ASTEvaluationOnly = true) && (FOO == 1 && BAR == 2))")); // Test node with nested marker child
+        assertEmptyInstance(findInstance("ABC == 'aaa' && ((_EvalOnly_ = true) && (FOO == 1 && BAR == 2))")); // Test node with nested marker child
         // Test and node with markers on both sides
-        assertEmptyInstance(findInstance("((BoundedRange = true) && (FOO > 1 && FOO < 2)) && ((ASTEvaluationOnly = true) && (FOO == 1 && BAR == 2))"));
+        assertEmptyInstance(findInstance("((_Bounded_ = true) && (FOO > 1 && FOO < 2)) && ((_EvalOnly_ = true) && (FOO == 1 && BAR == 2))"));
         
         // Test unwrapped marker and unwrapped sources
-        assertInstance(findInstance("(ASTDelayedPredicate = true) && FOO == 1 && BAR == 2"), ASTDelayedPredicate.class, "(BAR == 2 && FOO == 1)");
+        assertInstance(findInstance("(_Delayed_ = true) && FOO == 1 && BAR == 2"), ASTDelayedPredicate.class, "(BAR == 2 && FOO == 1)");
         // Test unwrapped marker and wrapped sources
-        assertInstance(findInstance("(ASTDelayedPredicate = true) && (FOO == 1 && BAR == 2)"), ASTDelayedPredicate.class, "FOO == 1 && BAR == 2");
+        assertInstance(findInstance("(_Delayed_ = true) && (FOO == 1 && BAR == 2)"), ASTDelayedPredicate.class, "FOO == 1 && BAR == 2");
         // Test wrapped marker and unwrapped sources
-        assertInstance(findInstance("((ASTDelayedPredicate = true) && FOO == 1 && BAR == 2)"), ASTDelayedPredicate.class, "(BAR == 2 && FOO == 1)");
+        assertInstance(findInstance("((_Delayed_ = true) && FOO == 1 && BAR == 2)"), ASTDelayedPredicate.class, "(BAR == 2 && FOO == 1)");
         // Test wrapped marker and wrapped sources
-        assertInstance(findInstance("((ASTDelayedPredicate = true) && (FOO == 1 && BAR == 2))"), ASTDelayedPredicate.class, "FOO == 1 && BAR == 2");
+        assertInstance(findInstance("((_Delayed_ = true) && (FOO == 1 && BAR == 2))"), ASTDelayedPredicate.class, "FOO == 1 && BAR == 2");
     }
     
     @Test

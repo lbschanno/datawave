@@ -879,9 +879,8 @@ public class RangeStream extends BaseVisitor implements CloseableIterable<QueryP
         Iterator<ASTIdentifier> iter = identifiers.iterator();
         while (iter.hasNext()) {
             ASTIdentifier id = iter.next();
-            if (ExceededValueThresholdMarkerJexlNode.class.getSimpleName().equals(id.image)
-                            || ExceededTermThresholdMarkerJexlNode.class.getSimpleName().equals(id.image)
-                            || ExceededOrThresholdMarkerJexlNode.class.getSimpleName().equals(id.image)) {
+            if (ExceededValueThresholdMarkerJexlNode.label().equals(id.image) || ExceededTermThresholdMarkerJexlNode.label().equals(id.image)
+                            || ExceededOrThresholdMarkerJexlNode.label().equals(id.image)) {
                 iter.remove();
             }
         }
